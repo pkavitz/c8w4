@@ -1,0 +1,79 @@
+---
+title: "Prediction Assignment"
+author: "Paul Kavitz"
+date: "April 3, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lubridate)
+library(caret)
+library(randomForest)
+library(MASS)
+library(rpart)
+setwd("Z:/Kliluk/Coursera/C8W4")
+```
+
+### Executive Summary
+This analysis predicts whether a participant correctly or incorrectly performed a barbell lift using data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+
+### Injest, Clean, and Create Data Sets
+
+```{r echo=TRUE, message=TRUE}
+set.seed(1001)
+base <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!",""))
+# Exploratory Analysis
+# dim(base); dim(testing); summary(base); str(base); head(base)
+
+# Remove attribute columns that are not legitimate predictors
+base <- base[,-c(1:7)]
+testing <- testing[,-c(1:7)]
+
+# Delete columns where all data is NA
+base <- base[,colSums(is.na(base))==0]
+testing <- testing[,colSums(is.na(testing))==0]
+
+inTrain <- createDataPartition(base$classe, p = 3/4, list=FALSE)
+training <- base[inTrain,]  ## training data set
+validation <- base[-inTrain,] ## Cross-validation data set
+```
+
+### Prediction Model 1: Random Forest
+Random Forest method is applied for the first prediction model, trained in the training set and evaluated in the validation set.
+```{r echo=TRUE}
+mod_rf <- randomForest(classe ~ ., data=training, method="class")
+pred_rf <- predict(mod_rf, validation, type="class")
+confusionMatrix(pred_rf, validation$classe)
+```
+From the confusion matrix we can see that the accuracy of the Random Forest model in our validation test set is 0.9949.
+
+### Prediction Model 2: Linear Discriminant Analysis
+Linear Discriminant Analysis method is applied for the second prediction model, trained in the training set and evaluated in the validation set.
+```{r echo=TRUE}
+mod_lda <- train(classe ~ ., data=training, method="lda")
+pred_lda <- predict(mod_lda, validation)
+confusionMatrix(pred_lda, validation$classe)
+```
+From the confusion matrix we can see that the accuracy of the LDA model in our validation test set is 0.7153.
+
+### Prediction Model 3: Classification Tree
+Classification Tree method is applied for the third prediction model, trained in the training set and evaluated in the validation set.
+```{r echo=TRUE}
+mod_class <- rpart(classe ~ ., data=training, method="class")
+pred_class <- predict(mod_class, validation, type="class")
+confusionMatrix(pred_class, validation$classe)
+```
+From the confusion matrix we can see that the accuracy of the LDA model in our validation test set is 0.7508.
+
+### Conclusion
+The Random Forest method yields the best accuracy of the three assessed models.  This model is now applied to the testing set per assignment requirements to assess model quality.
+```{r echo=TRUE}
+pred_rft <- predict(mod_rf, testing, type="class")
+n=length(pred_rft)
+for(i in 1:n){
+    write.table(pred_rft[i],file=paste0("p",i,".txt"),
+                quote=FALSE, row.names=FALSE, col.names=FALSE)
+}
+```
